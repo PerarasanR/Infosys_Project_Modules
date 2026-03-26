@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitPulse Health Anomaly Detection</title>
+    <!-- Chart.js for graphical representation -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- SheetJS (XLSX) for excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Font Awesome icons (optional, for better appearance) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #31476e 0%, #4b4f55 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .dashboard {
+            max-width: 1400px;
+            width: 100%;
+            background: rgb(166, 172, 161);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 48px;
+            box-shadow: 0 25px 60px -15px rgba(45, 62, 80, 0.3), inset 0 0 0 1px rgba(255,255,255,0.7);
+            padding: 35px 40px;
+        }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #1a2639;
+            margin-bottom: 5px;
+        }
+        h1 i {
+            color: #e63946;
+            font-size: 2rem;
+            background: rgba(230, 57, 70, 0.15);
+            padding: 12px;
+            border-radius: 30px;
+        }
+        .sub {
+            color: #3e4a5f;
+            font-weight: 400;
+            font-size: 1rem;
+            margin-bottom: 30px;
+            letter-spacing: 0.3px;
+            border-left: 4px solid #e63946;
+            padding-left: 18px;
+        }
+        /* login / input grid */
+        .card-panel {
+            background: rgba(129, 72, 129, 0.596);
+            border-radius: 32px;
+            padding: 28px 30px;
+            box-shadow: 0 15px 30px -12px rgba(0,20,30,0.15);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 18px 20px;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .field label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #02163a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .field label i {
+            width: 20px;
+            color: #ff0026;
+        }
+        .field input, .field select {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 24px;
+            padding: 14px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #1e2b3a;
+            outline: 2px solid transparent;
+            transition: 0.2s;
+            border: 1px solid #dde3ec;
+        }
+        .field input:focus, .field select:focus {
+            outline: 2px solid #e63946;
+            background: white;
+        }
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-top: 28px;
+            align-items: center;
+        }
+        .btn {
+            background: rgba(173, 133, 133, 0.664);
+            border: 1px solid #021b3a;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #1e2b3a;
+            box-shadow: 0 6px 12px -6px rgba(0,0,0,0.1);
+        }
+        .btn-primary {
+            background: #1a2639;
+            border: 1px solid #1a2639;
+            color: rgb(255, 255, 255);
+            box-shadow: 0 10px 18px -8px #1a263980;
+        }
+        .btn-primary i {
+            color: #ffffff;
+        }
+        .btn-danger {
+            background: #e63946;
+            border: 1px solid #e63946;
+            color: white;
+        }
+        .btn-excel {
+            background: #0f6e3f;
+            border: 1px solid #0f6e3f;
+            color: white;
+        }
+        .btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 25px -12px rgba(0,0,0,0.2);
+        }
+        /* metrics row for heart analysis */
+        .metric-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            background: #eef2f7;
+            border-radius: 38px;
+            padding: 22px 28px;
+            margin-bottom: 30px;
+            justify-content: space-between;
+            border: 1px solid white;
+        }
+        .metric-item {
+            flex: 1 1 160px;
+            background: white;
+            border-radius: 30px;
+            padding: 18px 10px;
+            text-align: center;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.02);
+        }
+        .metric-item .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1a2639;
+            line-height: 1.2;
+        }
+        .metric-item .label {
+            color: #64748b;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            font-size: 0.9rem;
+        }
+        .anomaly-badge {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-radius: 100px;
+            padding: 6px 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 32px;
+            padding: 20px 18px 15px 18px;
+            box-shadow: 0 15px 20px -15px #abb9cf;
+        }
+        .chart-container canvas {
+            max-height: 230px;
+            width: 100% !important;
+        }
+        .table-wrapper {
+            max-height: 280px;
+            overflow-y: auto;
+            border-radius: 28px;
+            background: white;
+            padding: 10px 5px 5px 5px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.03);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #f0f4fa;
+            color: #25415d;
+            padding: 16px 12px;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e2f40;
+        }
+        .anomaly-row {
+            background: #746161;
+            font-weight: 500;
+        }
+        .anomaly-row td:first-child {
+            border-left: 4px solid #e63946;
+        }
+        .fa-circle-exclamation {
+            color: #e63946;
+            margin-right: 6px;
+        }
+        .footer-note {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            color: #475569;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <h1>
+        <i class="fas fa-heart-pulse"></i> FitPulse Health Anomaly Detection from Fitness Devices
+    </h1>
+    <div class="sub">🧬 heart rate · steps · sleep — smart anomaly detection & clear export</div>
+
+    <!-- LOGIN / USER DETAILS PANEL (Login appearance) -->
+    <div class="card-panel">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <i class="fas fa-door-open" style="color:#e63946; font-size: 1.6rem;"></i>
+            <span style="font-weight: 600; font-size: 1.3rem;">user login & profile</span>
+        </div>
+        <div class="input-grid">
+            <div class="field"><label><i class="fas fa-user"></i> Username</label> <input type="text" id="username" placeholder="johndoe_23" value="alex_fit"></div>
+            <div class="field"><label><i class="fas fa-envelope"></i> Email</label> <input type="email" id="email" placeholder="alex@example.com" value="alex.fitness@mail.com"></div>
+            <div class="field"><label><i class="fas fa-calendar-alt"></i> Age</label> <input type="number" id="age" min="1" value="32"></div>
+            <div class="field"><label><i class="fas fa-venus-mars"></i> Gender</label> 
+                <select id="gender">
+                    <option value="male">Male</option><option value="female" selected>Female</option><option value="other">Other</option>
+                </select>
+            </div>
+            <div class="field"><label><i class="fas fa-tablet-alt"></i> Device</label> 
+                <select id="device">
+                    <option value="FitPulse Sense">FitPulse Sense</option><option value="FitPulse Pro" selected>FitPulse Pro</option><option value="Apple Watch">Apple Watch</option><option value="Garmin">Garmin</option>
+                </select>
+            </div>
+            <div class="field"><label><i class="fas fa-heart"></i> Heart rate (bpm)</label> <input type="number" id="heartRate" value="82"></div>
+            <div class="field"><label><i class="fas fa-shoe-prints"></i> Steps count</label> <input type="number" id="steps" value="8234"></div>
+            <div class="field"><label><i class="fas fa-moon"></i> Sleep duration (hrs)</label> <input type="number" step="0.1" id="sleep" value="6.8"></div>
+        </div>
+        <div class="action-buttons">
+            <button class="btn" id="clearBtn"><i class="fas fa-eraser"></i> Clear inputs</button>
+            <button class="btn btn-primary" id="addRecordBtn"><i class="fas fa-plus-circle"></i> Add entry & detect</button>
+        </div>
+    </div>
+
+    <!-- heart analysis & anomaly metrics (live) -->
+    <div class="metric-strip">
+        <div class="metric-item"><span class="value" id="avgHR">78</span> <span class="label">avg HR (bpm)</span></div>
+        <div class="metric-item"><span class="value" id="avgSteps">7540</span> <span class="label">avg steps</span></div>
+        <div class="metric-item"><span class="value" id="avgSleep">7.2</span> <span class="label">avg sleep (h)</span></div>
+        <div class="metric-item"><span class="value" id="anomalyCount">2</span> <span class="label">⚠️ anomalies</span></div>
+    </div>
+
+    <!-- graphical representations side by side -->
+    <div class="chart-row">
+        <div class="chart-container">
+            <canvas id="hrChart"></canvas>
+            <p style="text-align:center; margin-top:6px; font-weight:500;"><i class="fa-regular fa-heart" style="color:#e63946;"></i> Heart rate trend (last 7)</p>
+        </div> 
+        <div class="chart-container">
+            <canvas id="sleepStepsChart"></canvas>
+            <p style="text-align:center; margin-top:6px; font-weight:500;"><i class="fa-regular fa-moon"></i> Sleep vs steps (scaled)</p>
+        </div>
+    </div>
+
+    <!-- Data table + excel download + extra features -->
+    <div style="background: rgba(81, 129, 121, 0.452); border-radius: 36px; padding: 22px 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <span><i class="fas fa-clipboard-list" style="color:#1a2639;"></i> <strong style="font-size: 1.3rem;">health records</strong> (anomaly rows marked)</span>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-excel" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Download excel sheet</button>
+                <button class="btn btn-danger" id="clearHistoryBtn"><i class="fas fa-trash-can"></i> Clear history</button>
+            </div>
+        </div>
+        <div class="table-wrapper" id="tableWrapper">
+            <table id="healthTable">
+                <thead><tr><th>User</th><th>Age</th><th>Gender</th><th>Device</th><th>HR</th><th>Steps</th><th>Sleep</th><th>Anomaly</th></tr></thead>
+                <tbody id="tableBody">
+                    <!-- rows will be injected via js -->
+                </tbody>
+            </table>
+        </div>
+        <div class="footer-note">
+            <span><i class="fa-regular fa-lightbulb"></i> anomaly = HR >100 or &#60;45 · steps &#60;2000 · sleep &#60;4 or >11</span>
+            <span id="rowCount">showing 3 entries</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- Data storage ----------
+        let healthRecords = [];
+
+        // ---------- Default seed (so dashboard looks nice) ----------
+        const seedRecords = [
+            { username: 'alex_fit', email: 'alex.fitness@mail.com', age: 32, gender: 'Female', device: 'FitPulse Pro', heartRate: 82, steps: 8234, sleep: 6.8 },
+            { username: 'alex_fit', email: 'alex.fitness@mail.com', age: 32, gender: 'Female', device: 'FitPulse Pro', heartRate: 128, steps: 12400, sleep: 5.2 },   // anomaly HR
+            { username: 'jordan_m', email: 'jordan@example.com', age: 27, gender: 'Male', device: 'Apple Watch', heartRate: 52, steps: 1800, sleep: 3.5 },   // anomaly steps & sleep
+            { username: 'sam_g', email: 'sam.g@mail.com', age: 45, gender: 'Other', device: 'Garmin', heartRate: 73, steps: 9023, sleep: 8.0 },
+            { username: 'taylor_w', email: 'taylor.w@fit.com', age: 23, gender: 'Female', device: 'FitPulse Sense', heartRate: 112, steps: 15400, sleep: 10.2 }, // anomaly HR & sleep>11? no 10.2 ok, sleep>11? 10.2 ok but HR anomaly
+            { username: 'casey', email: 'casey@delta.io', age: 55, gender: 'Male', device: 'FitPulse Pro', heartRate: 66, steps: 5400, sleep: 7.3 }
+        ];
+
+        // helper to detect anomaly (based on HR, steps, sleep)
+        function isAnomaly(record) {
+            const hr = Number(record.heartRate);
+            const steps = Number(record.steps);
+            const sleep = Number(record.sleep);
+            return (hr > 100 || hr < 45) || (steps < 2000) || (sleep < 4 || sleep > 11);
+        }
+
+        // load seeds but skip exact duplicates (we keep all, but for demo we just push)
+        healthRecords.push(...seedRecords);
+
+        // ---------- Chart instances ----------
+        const hrCtx = document.getElementById('hrChart').getContext('2d');
+        const sleepCtx = document.getElementById('sleepStepsChart').getContext('2d');
+
+        let hrChart, sleepStepsChart;
+
+        // function to update charts based on current records (last 7 points)
+        function updateCharts() {
+            const recent = healthRecords.slice(-7);
+            const labels = recent.map((_, idx) => `#${idx+1}`);
+            const hrData = recent.map(r => r.heartRate);
+            const stepsData = recent.map(r => r.steps / 1000); // scale steps for readability (thousands)
+            const sleepData = recent.map(r => r.sleep);
+
+            // destroy old charts if exist
+            if (hrChart) hrChart.destroy();
+            if (sleepStepsChart) sleepStepsChart.destroy();
+
+            hrChart = new Chart(hrCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'heart rate (bpm)',
+                        data: hrData,
+                        borderColor: '#e63946',
+                        backgroundColor: 'rgba(230,57,70,0.1)',
+                        tension: 0.2,
+                        fill: true,
+                        pointBackgroundColor: (ctx) => {
+                            const value = ctx.raw;
+                            return (value > 100 || value < 45) ? '#b91c1c' : '#1a2639';
+                        },
+                        pointRadius: 5
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            sleepStepsChart = new Chart(sleepCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'sleep (hrs)', data: sleepData, backgroundColor: '#3b82f6', borderRadius: 8 },
+                        { label: 'steps (thousands)', data: stepsData, backgroundColor: '#f59e0b', borderRadius: 8 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // function to compute metrics (avg HR, steps, sleep, anomaly count)
+        function refreshMetrics() {
+            if (healthRecords.length === 0) {
+                document.getElementById('avgHR').innerText = '—';
+                document.getElementById('avgSteps').innerText = '—';
+                document.getElementById('avgSleep').innerText = '—';
+                document.getElementById('anomalyCount').innerText = '0';
+                return;
+            }
+            const sumHR = healthRecords.reduce((acc, r) => acc + Number(r.heartRate), 0);
+            const sumSteps = healthRecords.reduce((acc, r) => acc + Number(r.steps), 0);
+            const sumSleep = healthRecords.reduce((acc, r) => acc + Number(r.sleep), 0);
+            const avgHR = (sumHR / healthRecords.length).toFixed(1);
+            const avgSteps = Math.round(sumSteps / healthRecords.length);
+            const avgSleep = (sumSleep / healthRecords.length).toFixed(1);
+            const anomalies = healthRecords.filter(r => isAnomaly(r)).length;
+
+            document.getElementById('avgHR').innerText = avgHR;
+            document.getElementById('avgSteps').innerText = avgSteps;
+            document.getElementById('avgSleep').innerText = avgSleep;
+            document.getElementById('anomalyCount').innerText = anomalies;
+        }
+
+        // render table body
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if (healthRecords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">no records — add some ⚡</td></tr>';
+                document.getElementById('rowCount').innerText = 'showing 0 entries';
+                return;
+            }
+            healthRecords.slice().reverse().forEach(rec => {  // show newest first
+                const row = document.createElement('tr');
+                const anomaly = isAnomaly(rec);
+                if (anomaly) row.classList.add('anomaly-row');
+                row.innerHTML = `
+                    <td>${rec.username || '—'}</td>
+                    <td>${rec.age || '—'}</td>
+                    <td>${rec.gender || '—'}</td>
+                    <td>${rec.device || '—'}</td>
+                    <td>${rec.heartRate}</td>
+                    <td>${rec.steps}</td>
+                    <td>${rec.sleep}</td>
+                    <td>${anomaly ? '<i class="fa-solid fa-circle-exclamation"></i> anomaly' : '—'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            document.getElementById('rowCount').innerText = `showing ${healthRecords.length} entries`;
+        }
+
+        // full UI update (after data change)
+        function refreshUI() {
+            renderTable();
+            refreshMetrics();
+            updateCharts();
+        }
+
+        // add new record from input fields
+        function addFromInputs() {
+            const username = document.getElementById('username').value.trim() || 'unknown';
+            const email = document.getElementById('email').value.trim() || 'no@email.com';
+            const age = parseInt(document.getElementById('age').value, 10) || 30;
+            const gender = document.getElementById('gender').value;
+            const device = document.getElementById('device').value;
+            const heartRate = parseFloat(document.getElementById('heartRate').value) || 70;
+            const steps = parseFloat(document.getElementById('steps').value) || 5000;
+            const sleep = parseFloat(document.getElementById('sleep').value) || 7;
+
+            const newRecord = { username, email, age, gender, device, heartRate, steps, sleep };
+            healthRecords.push(newRecord);
+            refreshUI();
+        }
+
+        // clear input fields (but not table)
+        function clearInputs() {
+            document.getElementById('username').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('age').value = '';
+            document.getElementById('gender').value = 'female';
+            document.getElementById('device').value = 'FitPulse Pro';
+            document.getElementById('heartRate').value = '';
+            document.getElementById('steps').value = '';
+            document.getElementById('sleep').value = '';
+        }
+
+        // export to excel (using SheetJS) — includes all fields + anomaly flag
+        function exportToExcel() {
+            if (healthRecords.length === 0) {
+                alert('no records to export');
+                return;
+            }
+            const wsData = [];
+            // header row
+            wsData.push(['Username','Email','Age','Gender','Device','Heart Rate','Steps','Sleep (hrs)','Anomaly']);
+            healthRecords.forEach(r => {
+                wsData.push([
+                    r.username, r.email, r.age, r.gender, r.device, r.heartRate, r.steps, r.sleep,
+                    isAnomaly(r) ? 'YES' : 'no'
+                ]);
+            });
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'FitPulse');
+            XLSX.writeFile(wb, 'fitpulse_health_data.xlsx');
+        }
+
+        // clear all history
+        function clearHistory() {
+            if (confirm('Delete all health records? charts will reset.')) {
+                healthRecords = [];
+                refreshUI();
+            }
+        }
+
+        // ---------- event listeners ----------
+        document.getElementById('addRecordBtn').addEventListener('click', addFromInputs);
+        document.getElementById('clearBtn').addEventListener('click', clearInputs);
+        document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+        document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+
+        // initial render
+        refreshUI();
+
+        // extra: quick example to show that login-like fields are just inputs (username/email)
+        // we also prefill seed so it's fine.
+    })();
+</script>
+
+<!-- subtle additional feature: double‑click on table header to copy summary as text (extra) -->
+</body>
+</html>
